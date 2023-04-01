@@ -4,15 +4,20 @@ import requests
 from bs4 import BeautifulSoup as bs
 from urllib.request import urlopen as uReq
 import logging
+import pymongo
+
 logging.basicConfig(filename="scrapper.log" , level=logging.INFO)
+
 
 app = Flask(__name__)
 
 @app.route("/", methods = ['GET'])
+@cross_origin()
 def homepage():
     return render_template("index.html")
 
 @app.route("/review" , methods = ['POST' , 'GET'])
+@cross_origin()
 def index():
     if request.method == 'POST':
         try:
@@ -27,7 +32,7 @@ def index():
             box = bigboxes[0]
             productLink = "https://www.flipkart.com" + box.div.div.div.a['href']
             prodRes = requests.get(productLink)
-            prodRes.encoding='utf-8'
+            
             prod_html = bs(prodRes.text, "html.parser")
             print(prod_html)
             commentboxes = prod_html.find_all('div', {'class': "_16PBlm"})
@@ -39,14 +44,14 @@ def index():
             reviews = []
             for commentbox in commentboxes:
                 try:
-                    #name.encode(encoding='utf-8')
+               
                     name = commentbox.div.div.find_all('p', {'class': '_2sc7ZR _2V5EHH'})[0].text
 
                 except:
                     logging.info("name")
 
                 try:
-                    #rating.encode(encoding='utf-8')
+                   
                     rating = commentbox.div.div.div.div.text
 
 
@@ -55,7 +60,7 @@ def index():
                     logging.info("rating")
 
                 try:
-                    #commentHead.encode(encoding='utf-8')
+                    
                     commentHead = commentbox.div.div.div.p.text
 
                 except:
@@ -63,7 +68,7 @@ def index():
                     logging.info(commentHead)
                 try:
                     comtag = commentbox.div.div.find_all('div', {'class': ''})
-                    #custComment.encode(encoding='utf-8')
+                   
                     custComment = comtag[0].div.text
                 except Exception as e:
                     logging.info(e)
@@ -72,6 +77,17 @@ def index():
                           "Comment": custComment}
                 reviews.append(mydict)
             logging.info("log my final result {}".format(reviews))
+
+
+
+            client = pymongo.MongoClient("mongodb+srv://amranjot0001:amranjot@cluster0.s3cdspl.mongodb.net/?retryWrites=true&w=majority")
+            db = client.test
+
+            db = client["Reviews"]
+            review_coll2 = db["collections_of_rev"]
+            review_coll2.insert_many(reviews)
+
+
             return render_template('result.html', reviews=reviews[0:(len(reviews)-1)])
         except Exception as e:
             logging.info(e)
